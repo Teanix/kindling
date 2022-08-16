@@ -10,6 +10,7 @@ package cgoreceiver
 */
 import "C"
 import (
+	"fmt"
 	"sync"
 	"time"
 	"unsafe"
@@ -41,7 +42,7 @@ type CgoReceiver struct {
 func NewCgoReceiver(config interface{}, telemetry *component.TelemetryTools, analyzerManager *analyzerpackage.Manager) receiver.Receiver {
 	cfg, ok := config.(*Config)
 	if !ok {
-		telemetry.Logger.Sugar().Panicf("Cannot convert [%s] config", Cgo)
+		telemetry.Logger.Panicf("Cannot convert [%s] config", Cgo)
 	}
 	cgoReceiver := &CgoReceiver{
 		cfg:             cfg,
@@ -151,10 +152,8 @@ func If(condition bool, trueVal, falseVal interface{}) interface{} {
 }
 
 func (r *CgoReceiver) sendToNextConsumer(evt *model.KindlingEvent) error {
-	if ce := r.telemetry.Logger.Check(zapcore.DebugLevel, "Receive Event"); ce != nil {
-		ce.Write(
-			zap.String("event", evt.String()),
-		)
+	if ce := r.telemetry.Logger.Check(zapcore.DebugLevel, ""); ce != nil {
+		r.telemetry.Logger.Debug(fmt.Sprintf("Receive Event: %+v", evt))
 	}
 	analyzers := r.analyzerManager.GetConsumableAnalyzers(evt.Name)
 	if analyzers == nil || len(analyzers) == 0 {
@@ -174,7 +173,7 @@ func (r *CgoReceiver) subEvent() {
 	if len(r.cfg.SubscribeInfo) == 0 {
 		r.telemetry.Logger.Warn("No events are subscribed by cgoreceiver. Please check your configuration.")
 	} else {
-		r.telemetry.Logger.Sugar().Infof("The subscribed events are: %v", r.cfg.SubscribeInfo)
+		r.telemetry.Logger.Infof("The subscribed events are: %v", r.cfg.SubscribeInfo)
 	}
 	for _, value := range r.cfg.SubscribeInfo {
 		C.subEventForGo(C.CString(value.Name), C.CString(value.Category))
