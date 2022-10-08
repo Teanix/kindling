@@ -13,6 +13,7 @@ static sinsp *inspector = nullptr;
 sinsp_evt_formatter *formatter = nullptr;
 bool printEvent = false;
 int cnt = 0;
+int MAX_USERATTR_NUM = 8;
 map<string, ppm_event_type> m_events;
 map<string, Category> m_categories;
 int16_t event_filters[1024][16];
@@ -60,7 +61,7 @@ void sub_event(char *eventName, char *category)
 	}
 }
 
-void init_probe()
+int init_probe()
 {
 	bool bpf = false;
 	char* isPrintEvent = getenv("IS_PRINT_EVENT");
@@ -76,7 +77,7 @@ void init_probe()
 	{
 		inspector = new sinsp();
 		inspector->set_hostname_and_port_resolution_mode(false);
-		inspector->set_snaplen(80);
+		inspector->set_snaplen(200);
 
 		inspector->suppress_events_comm("containerd");
 		inspector->suppress_events_comm("dockerd");
@@ -130,7 +131,9 @@ void init_probe()
 	catch(const exception &e)
 	{
 		fprintf(stderr, "kindling probe init err: %s", e.what());
+		return 1;
 	}
+    return 0;
 }
 
 int getEvent(void **pp_kindling_event)
@@ -338,11 +341,12 @@ int getEvent(void **pp_kindling_event)
 		default:
 		{
 			uint16_t paramsNumber = ev->get_num_params();
-			if(paramsNumber > 8)
+			// Since current data structure specifies the maximum count of `user_attributes` 
+			if ((paramsNumber + userAttNumber) > MAX_USERATTR_NUM )
 			{
-				paramsNumber = 8;
+				paramsNumber =  MAX_USERATTR_NUM - userAttNumber;
 			}
-			paramsNumber -= userAttNumber;
+			// TODO Add another branch to verify the number of userAttNumber is less than MAX_USERATTR_NUM after the program becomes more complexd
 			for(auto i = 0; i < paramsNumber; i++)
 			{
 
